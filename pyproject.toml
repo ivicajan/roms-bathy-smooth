@@ -6,6 +6,7 @@ build-backend = "setuptools.backends._legacy:_Backend"
 name = "roms-bathy-smooth"
 version = "1.0.0"
 description = "ROMS bathymetry smoothing via Linear Programming and iterative methods"
+license = "GPL-3.0-or-later"
 requires-python = ">=3.9"
 dependencies = [
     "numpy",

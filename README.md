@@ -2,8 +2,6 @@
 
 Python library for smoothing ocean model (ROMS) bathymetry to satisfy rx0 and rx1 roughness constraints using Linear Programming and iterative methods.
 
-Converted from the MATLAB LP_SMOOTH toolbox (Mathieu Dutour Sikiric), with modifications by Ivica Janekovic.
-
 ## Features
 
 - **LP smoothing (rx0)** — minimise bathymetry change subject to rx0 constraints using scipy/HiGHS
@@ -58,15 +56,11 @@ grid.write_h()
 
 ## Example
 
-See `example_nwa.py` for a complete workflow matching the original MATLAB `smooth_example_NWA.m`.
+See `example_nwa.py` for a complete NWA grid smoothing workflow.
 
 ```bash
 python example_nwa.py
 ```
-
-## MATLAB Reference
-
-The original MATLAB `.m` files are included in the `matlab/` directory for reference.
 
 ## Module Reference
 
@@ -79,3 +73,11 @@ The original MATLAB `.m` files are included in the `matlab/` directory for refer
 | `heuristic.py` | Connected-component decomposition + parallel LP |
 | `iterative.py` | Laplacian, positive/negative rx0, positive rx1 |
 | `graph.py` | Connected components, BFS neighbourhood |
+
+## License
+
+This project is licensed under the GNU General Public License v3.0 — see the [LICENSE](LICENSE) file for details.
+
+## Credits
+
+Based on the MATLAB LP_SMOOTH toolbox by Mathieu Dutour Sikiric, with modifications by Ivica Janekovic.
