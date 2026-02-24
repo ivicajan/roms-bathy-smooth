@@ -2,14 +2,25 @@
 
 Python library for smoothing ocean model (ROMS) bathymetry to satisfy rx0 and rx1 roughness constraints using Linear Programming and iterative methods.
 
+## Important: ROMS rx0/rx1 Computation
+
+> **Rutgers ROMS computes rx0 and rx1 over ALL adjacent cell pairs, including
+> land-sea boundaries.** This library's `compute_rx0` / `compute_rx1` only
+> consider pairs where both cells are sea (controlled by `mask`). If you
+> smooth with the sea-only mask, the roughness values ROMS actually sees at
+> coastlines can be much larger than what the library reports.
+>
+> To match ROMS behaviour, use the **fill-over-land workflow** described below.
+
 ## Features
 
-- **LP smoothing (rx0)** — minimise bathymetry change subject to rx0 constraints using scipy/HiGHS
-- **Heuristic decomposition** — connected-component decomposition for large grids, with parallel multiprocessing
-- **Depth-dependent rx0** — spatially variable targets (stricter in deep water, relaxed in shallow)
-- **Iterative smoothers** — Laplacian, positive-only, negative-only (rx0), positive rx1
-- **ROMS vertical coordinates** — Vtransform 1/2, Vstretching 1/2/3
-- **Vectorised NumPy** — no external LP solver binary needed
+- **LP smoothing (rx0)** -- minimise bathymetry change subject to rx0 constraints using scipy/HiGHS
+- **Heuristic decomposition** -- connected-component decomposition for large grids, with parallel multiprocessing
+- **Depth-dependent rx0** -- spatially variable targets (stricter in deep water, relaxed in shallow)
+- **Fill-over-land** -- Laplacian extrapolation of sea depths over land for ROMS-compatible roughness
+- **Iterative smoothers** -- Laplacian, positive-only, negative-only (rx0), positive rx1
+- **ROMS vertical coordinates** -- Vtransform 1/2, Vstretching 1/2/3
+- **Vectorised NumPy** -- no external LP solver binary needed
 
 ## Installation
 
@@ -54,20 +65,67 @@ grid.h = h_final
 grid.write_h()
 ```
 
-## Example
+## Fill-Over-Land Workflow (ROMS-Compatible)
 
-See `example_nwa.py` for a complete NWA grid smoothing workflow.
+Use this when you need rx0/rx1 to match what ROMS actually computes at runtime:
+
+```python
+import numpy as np
+from roms_bathy_smooth import (
+    ROMSGrid, VerticalCoords, compute_rx0, compute_rx1,
+    lp_heuristic, smooth_positive_rx1,
+)
+
+grid = ROMSGrid.from_netcdf('my_grid.nc')
+vertical = VerticalCoords(N=20, theta_s=7.0, theta_b=0.5,
+                          vtransform=2, vstretching=2, hc=50.0)
+
+# 1. Fill land depths via Laplacian extrapolation
+h_filled = grid.fill_land_depths(hmin=4.0)
+
+# 2. Use mask=ones so smoothing sees ALL cells
+mask_all = np.ones_like(grid.mask)
+
+# 3. Depth-dependent rx0 target over all points
+rx0_target = grid.depth_dependent_rx0(
+    depths=[8000, 4000, 3000, 2000, 1000, 0],
+    values=[0.02, 0.05, 0.07, 0.10, 0.13, 0.15],
+    h=h_filled, mask=mask_all,
+)
+
+# 4. LP smoothing with mask=ones
+h_smooth = lp_heuristic(mask_all, h_filled, rx0_target)
+
+# 5. rx1 smoothing with mask=ones
+h_final = smooth_positive_rx1(mask_all, h_smooth, rx1max=6.0, vertical=vertical)
+
+# 6. Verify -- rx0/rx1 now match what ROMS sees
+rx0 = compute_rx0(h_final, mask_all)
+Z_r, Z_w = vertical.get_z_levels(h_final, mask_all)
+rx1 = compute_rx1(Z_w, mask_all)
+```
+
+See `example_shark_bay.py` for a complete working example with `--fill-land` and `--compare` flags.
+
+## Examples
+
+| Script | Description |
+|---|---|
+| `example_nwa.py` | NWA grid: depth-dependent rx0, boundary blending, two-pass LP + rx1 |
+| `example_shark_bay.py` | Shark Bay: sea-only vs fill-over-land comparison |
 
 ```bash
 python example_nwa.py
+python example_shark_bay.py --fill-land     # ROMS-compatible workflow
+python example_shark_bay.py --compare       # side-by-side comparison
 ```
 
 ## Module Reference
 
 | Module | Description |
 |---|---|
-| `grid.py` | `ROMSGrid` class — mask, bathymetry, NetCDF I/O |
-| `vertical.py` | `VerticalCoords` — Sc, Cs, Z-level computation |
+| `grid.py` | `ROMSGrid` class -- mask, bathymetry, NetCDF I/O, `fill_land_depths()`, `depth_dependent_rx0()` |
+| `vertical.py` | `VerticalCoords` -- Sc, Cs, Z-level computation |
 | `roughness.py` | Vectorised rx0 and rx1 computation |
 | `lp_smoothing.py` | LP rx0 smoothing via scipy.optimize.linprog (HiGHS) |
 | `heuristic.py` | Connected-component decomposition + parallel LP |
@@ -76,7 +134,7 @@ python example_nwa.py
 
 ## License
 
-This project is licensed under the GNU General Public License v3.0 — see the [LICENSE](LICENSE) file for details.
+This project is licensed under the GNU General Public License v3.0 -- see the [LICENSE](LICENSE) file for details.
 
 ## Credits
 

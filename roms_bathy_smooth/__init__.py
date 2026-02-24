@@ -19,6 +19,11 @@ Main functions:
     smooth_negative_rx0()  - Decrease-only rx0 smoothing
     laplacian_smooth_rx0() - Selective Laplacian diffusion
     smooth_positive_rx1()  - Increase-only rx1 smoothing (sigma coords)
+
+Note:
+    Rutgers ROMS computes rx0 and rx1 over ALL cells including land-sea
+    boundaries.  To match this behaviour use ``ROMSGrid.fill_land_depths()``
+    and pass ``mask=np.ones(...)`` to all functions.  See example_shark_bay.py.
 """
 
 from .grid import ROMSGrid

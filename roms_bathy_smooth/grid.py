@@ -92,7 +92,7 @@ class ROMSGrid:
         ds.variables[varname][:] = self.h
         ds.close()
 
-    def depth_dependent_rx0(self, depths, values):
+    def depth_dependent_rx0(self, depths, values, h=None, mask=None):
         """Create a spatially-variable rx0 target based on depth.
 
         Linearly interpolates rx0 values as a function of bathymetry depth.
@@ -101,10 +101,21 @@ class ROMSGrid:
         Args:
             depths: Depth breakpoints in any order, e.g. [8000, 4000, 3000, 2000, 1000, 0].
             values: Corresponding rx0 values, e.g. [0.02, 0.05, 0.07, 0.10, 0.13, 0.15].
+            h: Bathymetry to use for interpolation. Default: ``self.hraw``.
+                When using ``fill_land_depths()``, pass the filled array so
+                former-land points get depth-appropriate rx0 targets.
+            mask: Mask selecting points to interpolate. Default: ``self.mask``.
+                Pass ``np.ones_like(self.mask)`` for the ROMS-compatible
+                fill-over-land workflow.
 
         Returns:
             rx0_target: Array of shape (eta_rho, xi_rho) with spatially-variable rx0.
         """
+        if h is None:
+            h = self.hraw
+        if mask is None:
+            mask = self.mask
+
         # np.interp requires increasing x — sort the pairs
         depths = np.asarray(depths, dtype=float)
         values = np.asarray(values, dtype=float)
@@ -113,9 +124,96 @@ class ROMSGrid:
         values_sorted = values[order]
 
         rx0_target = np.full_like(self.h, values_sorted[-1])
-        sea = self.mask == 1
-        rx0_target[sea] = np.interp(self.hraw[sea], depths_sorted, values_sorted)
+        active = mask == 1
+        rx0_target[active] = np.interp(h[active], depths_sorted, values_sorted)
         return rx0_target
+
+    def fill_land_depths(self, hmin=None):
+        """Extrapolate sea depths over land by solving Laplace's equation.
+
+        Replaces land-point depths with a smooth extrapolation of neighbouring
+        sea depths.  Sea-point values are kept unchanged (except for optional
+        hmin clipping).  This removes artificial gradients at land-sea
+        boundaries so that subsequent smoothing with ``mask=np.ones(...)``
+        sees a smooth starting field everywhere.
+
+        The method iteratively averages land-point values from their
+        4-connected neighbours until convergence, which is equivalent to
+        solving nabla^2 h = 0 on the land domain with Dirichlet BCs from
+        the sea.
+
+        Args:
+            hmin: Optional minimum depth applied to ALL points before
+                  filling.  This ensures shallow fill values (e.g. hraw=1)
+                  are clipped to a physically reasonable floor that matches
+                  the ROMS model configuration.
+
+        Returns:
+            h_filled: Array of shape (eta_rho, xi_rho) with land depths
+                      replaced by smoothly extrapolated values.
+        """
+        h_filled = self.hraw.copy()
+
+        # Clip to hmin everywhere BEFORE filling, so the sea BCs that
+        # propagate into land already respect the minimum depth.
+        if hmin is not None:
+            h_filled = np.maximum(h_filled, hmin)
+
+        land = self.mask == 0
+        sea = ~land
+
+        if not land.any():
+            return h_filled
+
+        tol = 1e-4
+        max_iter = 10000
+
+        # Wipe land values so only sea BCs propagate inward
+        h_filled[land] = np.nan
+
+        for it in range(max_iter):
+            h_old = h_filled.copy()
+
+            # 4-connected neighbour sum and count, ignoring NaN
+            nsum = np.zeros_like(h_filled)
+            ncnt = np.zeros_like(h_filled)
+
+            for src, dst in [
+                (slice(None, -1), slice(1, None)),   # shift south → north
+                (slice(1, None),  slice(None, -1)),   # shift north → south
+            ]:
+                valid = ~np.isnan(h_filled[src, :])
+                nsum[dst, :] += np.where(valid, h_filled[src, :], 0.0)
+                ncnt[dst, :] += valid
+
+            for src, dst in [
+                (slice(None, -1), slice(1, None)),   # shift east → west
+                (slice(1, None),  slice(None, -1)),   # shift west → east
+            ]:
+                valid = ~np.isnan(h_filled[:, src])
+                nsum[:, dst] += np.where(valid, h_filled[:, src], 0.0)
+                ncnt[:, dst] += valid
+
+            # Update only land points that have at least one valid neighbour
+            update = land & (ncnt > 0)
+            h_filled[update] = nsum[update] / ncnt[update]
+
+            # Convergence: max change on land points that are no longer NaN
+            filled_land = land & ~np.isnan(h_filled)
+            if not filled_land.any():
+                continue
+            old_vals = h_old[filled_land]
+            new_vals = h_filled[filled_land]
+            changed = np.isnan(old_vals) | (np.abs(new_vals - old_vals) > tol)
+            if not changed.any():
+                break
+
+        # Any remaining NaN (disconnected land) → mean of sea depths
+        still_nan = np.isnan(h_filled)
+        if still_nan.any():
+            h_filled[still_nan] = np.nanmean(h_filled[sea])
+
+        return h_filled
 
     def boundary_taper(self, width, value_edge=0.0, value_interior=1.0):
         """Create a linear taper weight from edges toward interior.

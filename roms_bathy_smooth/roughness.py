@@ -21,6 +21,14 @@ def compute_rx0(h, mask):
 
     Returns:
         rx0: Roughness matrix, shape (eta_rho, xi_rho).
+
+    Note:
+        Rutgers ROMS computes rx0 over ALL adjacent cells, including land-sea
+        boundaries.  To match ROMS behaviour, first fill land depths with
+        ``ROMSGrid.fill_land_depths(hmin)`` and pass ``mask=np.ones_like(h)``::
+
+            h_filled = grid.fill_land_depths(hmin=4.0)
+            rx0 = compute_rx0(h_filled, np.ones_like(h_filled))
     """
     rx0 = np.zeros_like(h)
 
@@ -60,6 +68,15 @@ def compute_rx1(z_w, mask):
 
     Returns:
         rx1: Roughness matrix, shape (eta_rho, xi_rho).
+
+    Note:
+        Rutgers ROMS computes rx1 over ALL adjacent cells, including land-sea
+        boundaries.  To match ROMS behaviour, first fill land depths with
+        ``ROMSGrid.fill_land_depths(hmin)`` and pass ``mask=np.ones_like(h)``::
+
+            h_filled = grid.fill_land_depths(hmin=4.0)
+            Z_r, Z_w = vertical.get_z_levels(h_filled, np.ones_like(h_filled))
+            rx1 = compute_rx1(Z_w, np.ones_like(h_filled))
     """
     N = z_w.shape[0] - 1
     rx1 = np.zeros_like(mask, dtype=float)
