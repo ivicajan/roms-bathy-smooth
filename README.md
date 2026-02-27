@@ -11,6 +11,8 @@ Python library for smoothing ocean model (ROMS) bathymetry to satisfy rx0 and rx
 > coastlines can be much larger than what the library reports.
 >
 > To match ROMS behaviour, use the **fill-over-land workflow** described below.
+> In case you are using WET_DRY then values over land play important role
+> and you have to take special care.
 
 ## Features
 
@@ -138,4 +140,8 @@ This project is licensed under the GNU General Public License v3.0 -- see the [L
 
 ## Credits
 
-Based on the MATLAB LP_SMOOTH toolbox by Mathieu Dutour Sikiric, with modifications by Ivica Janekovic.
+Reference: Mathieu Dutour Sikirić, Ivica Janeković, Milivoj Kuzmić. 2009. 
+A new approach to bathymetry smoothing in sigma-coordinate ocean models, Ocean Modelling,
+Volume 29, Issue 2, Pages 128-136, ISSN 1463-5003,
+https://doi.org/10.1016/j.ocemod.2009.03.009.
+(https://www.sciencedirect.com/science/article/pii/S1463500309000742)
