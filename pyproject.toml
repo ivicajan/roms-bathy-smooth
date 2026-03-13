@@ -1,6 +1,6 @@
 [build-system]
 requires = ["setuptools>=64", "wheel"]
-#build-backend = "setuptools.backends._legacy:_Backend"
+build-backend = "setuptools.build_meta"
 
 [project]
 name = "roms-bathy-smooth"
@@ -8,6 +8,18 @@ version = "1.0.0"
 description = "ROMS bathymetry smoothing via Linear Programming and iterative methods"
 license = "GPL-3.0-or-later"
 requires-python = ">=3.9"
+authors = [
+    {name = "Ivica Janekovic", email = "ivica.janekovic@uwa.edu.au"},
+]
+readme = "README.md"
+keywords = ["ROMS", "bathymetry", "smoothing", "ocean-modeling", "linear-programming"]
+classifiers = [
+    "Development Status :: 4 - Beta",
+    "Intended Audience :: Science/Research",
+    "License :: OSI Approved :: GNU General Public License v3 or later (GPLv3+)",
+    "Programming Language :: Python :: 3",
+    "Topic :: Scientific/Engineering",
+]
 dependencies = [
     "numpy",
     "scipy",
@@ -16,6 +28,10 @@ dependencies = [
 
 [project.optional-dependencies]
 plot = ["matplotlib"]
+
+[project.urls]
+Homepage = "https://github.com/ivicajan/roms-bathy-smooth"
+Repository = "https://github.com/ivicajan/roms-bathy-smooth"
 
 [tool.setuptools.packages.find]
 include = ["roms_bathy_smooth*"]
