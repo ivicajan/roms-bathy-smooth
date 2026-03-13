@@ -26,7 +26,20 @@ Python library for smoothing ocean model (ROMS) bathymetry to satisfy rx0 and rx
 
 ## Installation
 
+From PyPI:
 ```bash
+pip install roms-bathy-smooth
+```
+
+With optional plotting support:
+```bash
+pip install roms-bathy-smooth[plot]
+```
+
+From source (for development):
+```bash
+git clone https://github.com/ivicajan/roms-bathy-smooth.git
+cd roms-bathy-smooth
 pip install -e .
 ```
 
