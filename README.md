@@ -21,7 +21,7 @@ Python library for smoothing ocean model (ROMS) bathymetry to satisfy rx0 and rx
 - **Depth-dependent rx0** -- spatially variable targets (stricter in deep water, relaxed in shallow)
 - **Fill-over-land** -- Laplacian extrapolation of sea depths over land for ROMS-compatible roughness
 - **Iterative smoothers** -- Laplacian, positive-only, negative-only (rx0), positive rx1
-- **ROMS vertical coordinates** -- Vtransform 1/2, Vstretching 1/2/3
+- **ROMS vertical coordinates** -- Vtransform 1/2, Vstretching 1/2/3/4/5
 - **Vectorised NumPy** -- no external LP solver binary needed
 
 ## Installation
