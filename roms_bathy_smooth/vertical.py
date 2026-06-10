@@ -1,7 +1,7 @@
 """ROMS vertical coordinate computations.
 
 Computes S-coordinate stretching curves (Sc, Cs) and vertical Z levels
-for ROMS ocean model grids. Supports Vtransform 1/2 and Vstretching 1/2/3.
+for ROMS ocean model grids. Supports Vtransform 1/2 and Vstretching 1/2/3/4/5.
 
 Replaces: GRID_GetSc_Cs_V2.m, GetVerticalLevels2.m
 """
@@ -19,9 +19,10 @@ class VerticalCoords:
         theta_s: Surface stretching parameter (THETA_S in ROMS).
         theta_b: Bottom stretching parameter (THETA_B in ROMS).
         vtransform: Vertical transformation type (1 or 2).
-        vstretching: Vertical stretching type (1, 2, or 3).
+        vstretching: Vertical stretching type (1, 2, 3, 4, or 5).
         hc: Critical depth / TCLINE (m).
     """
+
     N: int
     theta_s: float
     theta_b: float
@@ -39,8 +40,14 @@ class VerticalCoords:
             Cs_r: Stretching curve at rho-points, shape (N,).
         """
         N = self.N
-        Sc_r = -(2 * np.arange(N, 0, -1) - 1) / (2 * N)
-        Sc_w = -np.arange(N, -1, -1) / N
+
+        if self.vstretching == 5:
+            # ROMS Vstretching=5 redefines the S-coordinate itself.
+            Sc_r = self._stretch5(np.empty(N))
+            Sc_w = self._stretch5(np.empty(N + 1))
+        else:
+            Sc_r = -(2 * np.arange(N, 0, -1) - 1) / (2 * N)
+            Sc_w = -np.arange(N, -1, -1) / N
 
         Cs_r = self._stretching(Sc_r)
         Cs_w = self._stretching(Sc_w)
@@ -72,10 +79,50 @@ class VerticalCoords:
             Cweight = 0.5 * (1 - np.tanh(Hscale * (sc + 0.5)))
             cs = Cweight * Cbot + (1 - Cweight) * Csur
 
+        elif self.vstretching == 4:
+            # ROMS: if theta_s <= 0, use Csur = -s^2.
+            if ts > 0:
+                cs = (1 - np.cosh(ts * sc)) / (np.cosh(ts) - 1)
+            else:
+                cs = -(sc ** 2)
+
+            # ROMS: if theta_b <= 0, keep Csur unchanged.
+            if tb > 0:
+                cs = (np.exp(tb * cs) - 1) / (1 - np.exp(-tb))
+
+        elif self.vstretching == 5:
+            # ROMS: same Cs transform as Vstretching=4 but using redefined s.
+            if ts > 0:
+                cs = (1 - np.cosh(ts * sc)) / (np.cosh(ts) - 1)
+            else:
+                cs = -(sc ** 2)
+
+            if tb > 0:
+                cs = (np.exp(tb * cs) - 1) / (1 - np.exp(-tb))
+
         else:
-            raise ValueError(f"Vstretching must be 1, 2, or 3, got {self.vstretching}")
+            raise ValueError(f"Vstretching must be 1, 2, 3, 4 or 5, got {self.vstretching}")
 
         return cs
+
+    def _stretch5(self, sc):
+        """ROMS Vstretching=5 redefined S-coordinate.
+
+        Uses the quadratic Legendre polynomial form from ROMS set_scoord.F:
+        s(k) = -A(k) - 0.01 * B(k), with k at rho or w staggering.
+        """
+        if len(sc) == self.N:  # rho-points: k -> k - 0.5
+            K = np.arange(0.5, self.N, dtype=np.float64)
+        elif len(sc) == self.N + 1:  # w-points: k = 0..N
+            K = np.arange(self.N + 1, dtype=np.float64)
+        else:
+            raise ValueError(
+                f"Unexpected S-coordinate length {len(sc)} for N={self.N}; expected N or N+1"
+            )
+
+        S1 = (K * K - 2 * K * self.N + K + self.N * self.N - self.N) / (self.N * self.N - self.N)
+        S2 = (K * K - K * self.N) / (1 - self.N)
+        return -S1 - 0.01 * S2
 
     def get_z_levels(self, h, mask):
         """Compute vertical Z levels from bathymetry.
