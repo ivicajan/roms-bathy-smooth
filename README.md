@@ -153,7 +153,10 @@ This project is licensed under the GNU General Public License v3.0 -- see the [L
 
 ## Credits
 
-Reference: Mathieu Dutour Sikirić, Ivica Janeković, Milivoj Kuzmić. 2009. 
+Reference: Ivica Janekovic, Dennis Stanley. 2027. Development and validation of a high-resolution ROMS model for the Central Great Barrier Reef using LP-optimised bathymetry and realistic river forcing, Ocean Modelling, Volume 205, ISSN 1463-5003,
+https://doi.org/10.1016/j.ocemod.2026.102825.
+
+Mathieu Dutour Sikirić, Ivica Janeković, Milivoj Kuzmić. 2009. 
 A new approach to bathymetry smoothing in sigma-coordinate ocean models, Ocean Modelling,
 Volume 29, Issue 2, Pages 128-136, ISSN 1463-5003,
 https://doi.org/10.1016/j.ocemod.2009.03.009.
